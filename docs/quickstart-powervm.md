@@ -13,7 +13,7 @@ __Create LPAR__
 
 Here are the commands to create the LPAR when using CLI:
 ```
-mksyscfg -r lpar -m <managed_system> -i name=<lpar_name>, profile_name=<profile_name>, lpar_env=aixlinux,shared_proc_pool_util_auth=1, min_mem=8192, desired_mem=16384, max_mem=16384, proc_mode=shared, min_proc_units=0.2, desired_proc_units=2.0,max_proc_units=4.0, min_procs=1, desired_procs=4, max_procs=4, sharing_mode=uncap, uncap_weight=128, max_virtual_slots=64,boot_mode=norm, conn_monitoring=1, shared_proc_pool_util_auth=1
+mksyscfg -r lpar -m <managed_system> -i name=<lpar_name>, profile_name=default_profile, lpar_env=aixlinux,shared_proc_pool_util_auth=0, min_mem=8192, desired_mem=16384, max_mem=16384, proc_mode=ded, min_procs=1, desired_procs=2, max_procs=2, sharing_mode=share_idle_procs, max_virtual_slots=64, boot_mode=norm, conn_monitoring=1
 ```
 
 __Add Network__
@@ -52,12 +52,19 @@ After helper is up and running, configure it with correct network configurations
 
 Create 6 LPARs using the same steps as described in the `Create the LPAR` section. Please follow the [minimum requirements](https://docs.openshift.com/container-platform/4.3/installing/installing_ibm_power/installing-ibm-power.html#minimum-resource-requirements_installing-ibm-power) for these LPARs.
 
+__Minimum resource requirements__
+| Machine  | OS    | vCPU(SMT=8) | vCPU(SMT=4) | Memory | Storage |
+|----------|:----: |   :-----:   |    :----:   | :----: |---------|
+| Bootstrap| RHCOS | 4           | 8           | 16 GB  | 120GB   |
+| Master   | RHCOS | 2           | 4           | 16 GB  | 120GB   |
+| Worker   | RHCOS | 2           | 4           |  8 GB  | 120GB   |
+
 __Bootstrap__
 
 Create bootstrap LPAR
 
 ```
-mksyscfg -r lpar -m <managed_system> -i name=ocp4-bootstrap, profile_name=default_profile, lpar_env=aixlinux, shared_proc_pool_util_auth=1, min_mem=8192, desired_mem=16384, max_mem=16384, proc_mode=shared, min_proc_units=0.2, desired_proc_units=2.0,max_proc_units=4.0, min_procs=1, desired_procs=4, max_procs=4, sharing_mode=uncap, uncap_weight=128, max_virtual_slots=64,boot_mode=norm, conn_monitoring=1, shared_proc_pool_util_auth=1
+mksyscfg -r lpar -m <managed_system> -i name=ocp4-bootstrap, profile_name=default_profile, lpar_env=aixlinux, shared_proc_pool_util_auth=0, min_mem=8192, desired_mem=16384, max_mem=16384, proc_mode=ded, min_procs=1, desired_procs=4, max_procs=4, sharing_mode=share_idle_procs, max_virtual_slots=64, boot_mode=norm, conn_monitoring=1
 ```
 
 __Masters__
@@ -67,7 +74,7 @@ Create the master LPARs
 ```
 for i in master{0..2}
 do
-  mksyscfg -r lpar -m <managed_system> -i name="ocp4-${i}", profile_name=default_profile, lpar_env=aixlinux,shared_proc_pool_util_auth=1,min_mem=4096, desired_mem=8192, max_mem=8192, proc_mode=shared, min_proc_units=0.2, desired_proc_units=2.0,max_proc_units=4.0, min_procs=1, desired_procs=4, max_procs=4, sharing_mode=uncap, uncap_weight=128, max_virtual_slots=64,boot_mode=norm, conn_monitoring=1, shared_proc_pool_util_auth=1
+  mksyscfg -r lpar -m <managed_system> -i name="ocp4-${i}", profile_name=default_profile, lpar_env=aixlinux,shared_proc_pool_util_auth=0, min_mem=8192, desired_mem=16384, max_mem=16384, proc_mode=ded, min_procs=1, desired_procs=2, max_procs=2, sharing_mode=share_idle_procs, max_virtual_slots=64, boot_mode=norm, conn_monitoring=1
 done
 ```
 
@@ -78,7 +85,7 @@ Create the worker LPARs
 ```
 for i in worker{0..1}
 do
-  mksyscfg -r lpar -m <managed_system> -i name="ocp4-${i}", profile_name=default_profile, lpar_env=aixlinux, shared_proc_pool_util_auth=1, min_mem=8192, desired_mem=8192, max_mem=16384, proc_mode=shared, min_proc_units=0.2, desired_proc_units=2.0,max_proc_units=4.0, min_procs=1, desired_procs=4, max_procs=4, sharing_mode=uncap, uncap_weight=128, max_virtual_slots=64, boot_mode=norm, conn_monitoring=1, shared_proc_pool_util_auth=1
+  mksyscfg -r lpar -m <managed_system> -i name="ocp4-${i}", profile_name=default_profile, lpar_env=aixlinux, shared_proc_pool_util_auth=0, min_mem=8192, desired_mem=8192, max_mem=16384, proc_mode=ded, min_procs=1, desired_procs=2, max_procs=2, sharing_mode=share_idle_procs, max_virtual_slots=64, boot_mode=norm, conn_monitoring=1
 done
 ```
 > **NOTE** Make sure you attach the LPARs to the appropriate network and add storage after successful LPAR creation.
