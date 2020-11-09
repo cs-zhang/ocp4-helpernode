@@ -35,8 +35,8 @@ helper:
 This is how it breaks down
 
 * `helper.name` - *REQUIRED*: This needs to be set to the hostname you want your helper to be (some people leave it as "helper" others change it to "bastion")
-* `helper.ipaddr` - *REQUIRED* Set this to the current IP address of the helper. This is used to set up the [reverse dns definition](../templates/named.conf.j2#L65)
-* `helper.networkifacename` - *OPTIONAL*: By default the playbook uses `{{ ansible_default_ipv4.interface }}` for the interface of the helper. This option can be set to override the interface used for the helper (if, for example, you're on a dual homed network or your helper has more than one interface).
+* `helper.ipaddr` - *REQUIRED* Set this to the current IP address of the helper. In case of high availability cluster, set this to the virtual IP address of the helpernodes. This is used to set up the [reverse dns definition](../templates/named.conf.j2#L65)
+* `helper.networkifacename` - *OPTIONAL*: By default the playbook uses `{{ ansible_default_ipv4.interface }}` for the interface of the helper or helpernodes (In case of high availability). This option can be set to override the interface used for the helper or helpernodes (if, for example, you're on a dual homed network or your helper has more than one interface).
 
 **NOTE**: The `helper.networkifacename` is the ACTUAL name of the interface, NOT the NetworkManager name (you should _NEVER_ need to set it to something like `System eth0`. Set it to what you see in `ip addr`)
 
@@ -57,8 +57,8 @@ Explanation of the DNS variables:
 
 * `dns.domain` - This is what domain the installed DNS server will have. This needs to match what you will put for the [baseDomain](examples/install-config-example.yaml#L2) inside the `install-config.yaml` file.
 * `dns.clusterid` - This is what your clusterid will be named and needs to match what you will for [metadata.name](examples/install-config-example.yaml#L12) inside the `install-config.yaml` file.
-* `dns.forwarder1` - Tis will be set up as the DNS forwarder. This is usually one of the corprate (or "upstream") DNS servers.
-* `dns.forwarder2` - Tis will be set up as the second DNS forwarder. This is usually one of the corprate (or "upstream") DNS servers.
+* `dns.forwarder1` - Tis will be set up as the DNS forwarder. This is usually one of the corporate (or "upstream") DNS servers.
+* `dns.forwarder2` - Tis will be set up as the second DNS forwarder. This is usually one of the corporate (or "upstream") DNS servers.
 
 The DNS server will be set up using `dns.clusterid` + `dns.domain` as the domain it's serving. In the above example, the helper will be setup to be the SOA for `ocp4.example.com`. The helper will also be setup as it's [own DNS server](../templates/resolv.conf.j2)
 
@@ -139,6 +139,8 @@ masters:
 
 Similar to the master section; this sets up worker node configuration. Please note that this is an array.
 
+> :rotating_light: This section is optional if you're installing a compact cluster
+
 ```
 workers:
   - name: "worker0"
@@ -157,7 +159,7 @@ workers:
 * `workers.macaddr` - The mac address for [dhcp reservation](../templates/dhcpd.conf.j2#L22). This option is not needed if you're doing static ips.
 
 
-**NOTE**: At LEAST 2 workers is needed for installation of OpenShift 4
+**NOTE**: At LEAST 2 workers is needed if you're installing a standard version of OpenShift 4
 
 ## Extra sections
 
@@ -178,6 +180,8 @@ This effectively disables DHCP, TFTP, and PXE on the helper. This implicitly mea
 ### Specifying Artifacts
 
 You can have the helper deploy specific artifacts for a paticular version of OCP. Or, the nightly builds of OpenShift 4 or even OKD. Adding the following to your `vars.yaml` file will pull in the coresponding artifacts. Below is an example of pulling the `4.2.0-0.nightly-2019-09-16-114316` nightly build:
+
+> :warning: note, you need to use the `ocp_bios` var for the rootfs image for 4.6+
 
 ```
 ocp_bios: "https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/pre-release/latest/rhcos-42.80.20190828.2-metal-bios.raw.gz"
@@ -204,7 +208,7 @@ ocp_installer: "file:///tmp/openshift-install-linux-4.2.0-0.nightly-2019-09-16-1
 
 The [default](../vars/main.yml#L4-L8) is to use the latest **stable** OpenShift 4 release.
 
-> Also, you can point this to ANY apache server...not just the OpenShift 4 mirrors (*cough* *cough* disconnected hint here *cough* *cough*)
+> Also, you can point this to ANY apache server...not just the OpenShift 4 mirrors (Useful for disconnected installs)
 
 ### Filetranspiler 
 
@@ -257,6 +261,32 @@ other:
 ```
 
 You can omit `macaddr` if using `staticips=true`
+
+### High Availability section
+
+**OPTIONAL**
+
+This section sets up the configuration for installing a high availability cluster. Please note that `high_availability.helpernodes` is an array.
+
+```
+high_availability:
+  helpernodes:
+    - name: "helper-0"
+      ipaddr: "192.168.67.2"
+      state: MASTER
+      priority: 100
+    - name: "helper-1"
+      ipaddr: "192.168.67.3"
+      state: BACKUP
+      priority: 90
+```
+
+* `high_availability.helpernodes.name` - The hostname (**__WITHOUT__** the fqdn) of the helpernode you want to set
+* `high_availability.helpernodes.ipaddr` - The IP address that you want to set (this modifies the [dns zonefile](../templates/zonefile.j2#L20))
+* `high_availability.helpernodes.state` - The initial state of the helpernode that you want to set (MASTER|BACKUP)
+* `high_availability.helpernodes.priority` - The priority of the helpernode that you want to set (0-255), and the helpernodes configured as state MASTER should have a priority value greater than the helpernodes configured as state BACKUP.
+
+**NOTE**: Ensure you update `inventory` file appropriately to run the playbook on all the helpernodes. For more information refer [inventory doc](inventory-ha-doc.md).
 
 ### Local Registry
 
@@ -429,4 +459,6 @@ Below are example `vars.yaml` files.
 * [Example of vars.yaml using Static IPs with Nightlies](examples/vars-static-nightlies.yaml)
 * [Example of vars.yaml for Power](examples/vars-ppc64le.yaml)
 * [Example of vars.yaml DHCP and External NFS](examples/vars-nfs.yaml)
-* [Example of vars.yaml which Chrony configuration](examples/vars-chrony.yaml)
+* [Example of vars.yaml with Chrony configuration](examples/vars-chrony.yaml)
+* [Example of vars.yaml setting up a Compact Cluster](examples/vars-compact.yaml)
+* [Example of vars.yaml setting up a Compact Cluster with Static IPs](examples/vars-compact-static.yaml)
